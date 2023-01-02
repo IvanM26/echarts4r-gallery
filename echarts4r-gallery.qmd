@@ -1,0 +1,536 @@
+---
+title: "echarts4r Gallery"
+format: html
+---
+```{r}
+income_data <- read.csv("adult.csv")
+sales_data <- read.csv("sales_data_sample.csv")
+```
+
+# Bar Charts
+## One Variable
+```{r}
+chart_data <- income_data |> 
+  dplyr::count(workclass, wt = fnlwgt, sort = TRUE)
+
+chart_data |> 
+  echarts4r::e_chart(x = workclass) |> 
+  echarts4r::e_bar(serie = n,
+                   name = "Citizens",
+                   legend = FALSE,
+                   itemStyle = list(
+                     color = "lightblue",
+                     borderColor = "black"
+                   )) |> 
+  echarts4r::e_flip_coords() |> 
+  echarts4r::e_grid(containLabel = TRUE) |> 
+  echarts4r::e_x_axis(formatter = htmlwidgets::JS(
+    "function(value) {
+      if (value === 0) return('')
+      else {
+        millions = value/1000000
+        comma_separated = millions.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',')
+        return(comma_separated + 'M')
+      }
+    }")) |> 
+  echarts4r::e_tooltip(trigger = "axis") |> 
+  echarts4r::e_title(text = "Citizens by Employment Type")
+```
+
+- Change bar order
+- Change series name
+- Remove legend
+- Change bar color and border
+- Flip coordinates
+- Don't cut category labels
+- Remove 0 from axis labels
+- Express axis labels in millions
+- Comma-separate thousands
+- Add tooltip with axis trigger
+- Add title
+
+## Two Variables
+```{r}
+chart_data <- income_data |> 
+  dplyr::mutate(
+    relationship = forcats::fct(relationship, 
+                                levels = c(
+                                  "Husband",
+                                  "Wife",
+                                  "Unmarried",
+                                  "Own-child",
+                                  "Other-relative",
+                                  "Not-in-family")
+    ),
+    race = forcats::fct(race,
+                        levels = c(
+                          "Other",
+                          "Asian-Pac-Islander",
+                          "Amer-Indian-Eskimo",
+                          "Black",
+                          "White")
+    )
+  ) |> 
+  dplyr::count(relationship, race, wt = fnlwgt) |> 
+  dplyr::group_by(race) |> 
+  dplyr::mutate(prop = round(n / sum(n), 2)) |> 
+  dplyr::ungroup() |> 
+  dplyr::group_by(relationship) |> 
+  dplyr::mutate(category_color = dplyr::case_when(
+    relationship == "Husband" ~ "blue",
+    relationship == "Not-in-family" ~ "gray",
+    relationship == "Other-relative" ~ "brown",
+    relationship == "Own-child" ~ "green",
+    relationship == "Unmarried" ~ "orange",
+    relationship == "Wife" ~ "violet"
+  ))
+
+chart_data |> 
+  echarts4r::e_chart(x = race) |> 
+  echarts4r::e_bar(serie = prop) |> 
+  echarts4r::e_flip_coords() |> 
+  echarts4r::e_grid(containLabel = TRUE, right = "15%") |> 
+  echarts4r::e_tooltip(trigger = "axis",
+                       valueFormatter = htmlwidgets::JS(
+                         "function(value) {
+                           return(Math.round(value * 100) + '%')
+                         }"
+                       )) |> 
+  echarts4r::e_legend(
+    left = "right",
+    top = "middle",
+    orient = "vertical"
+  ) |> 
+  echarts4r::e_color(unique(chart_data$category_color)) |> 
+  echarts4r::e_x_axis(formatter = echarts4r::e_axis_formatter(style = "percent"))
+```
+
+- Order categories both in axis and legend
+- Work with percentages
+- Custom colors to each category
+- Flip coordinates
+- Change legend position (middle-right) without overlapping chart
+
+```{r}
+chart_data <- income_data |> 
+  dplyr::count(sex, income, wt = fnlwgt) |> 
+  dplyr::group_by(sex) |> 
+  dplyr::mutate(prop = round(n / sum(n), 2)) |> 
+  dplyr::ungroup() |> 
+  dplyr::group_by(income)
+
+chart_data |> 
+  echarts4r::e_chart(x = sex) |> 
+  echarts4r::e_bar(serie = prop, stack = "my_stack", bind = n) |> 
+  echarts4r::e_flip_coords() |> 
+  echarts4r::e_grid(right = "15%") |> 
+  echarts4r::e_tooltip(formatter = htmlwidgets::JS(
+                         "function(params) {
+                           number = params.name.replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',')
+                           return(params.value[1] + '<br>' +
+                                  params.marker + '<strong>' + number + '</strong>')
+                         }"
+                       )) |> 
+  echarts4r::e_legend(
+    left = "right",
+    top = "middle",
+    orient = "vertical"
+  ) |> 
+  echarts4r::e_x_axis(show = FALSE) |> 
+  echarts4r::e_labels(position = "inside",
+                      formatter = htmlwidgets::JS(
+                         "function(params) {
+                           number = params.value[0]
+                           return(Math.round(number * 100) + '%')
+                         }"
+                       )) |> 
+  echarts4r::e_title(text = "Income Distribution by Sex")
+```
+
+- Display a different series in tooltip
+- Stacked bar chart
+- Legend on middle-right position with proper spacing
+- Custom data labels
+
+## Three Variables
+```{r}
+#TODO
+```
+
+```{r}
+data_split <- income_data |> 
+  dplyr::mutate(
+    relationship = forcats::fct(relationship, 
+                                levels = c(
+                                  "Husband",
+                                  "Wife",
+                                  "Unmarried",
+                                  "Own-child",
+                                  "Other-relative",
+                                  "Not-in-family")
+    ),
+    race = forcats::fct(race,
+                        levels = c(
+                          "Other",
+                          "Asian-Pac-Islander",
+                          "Amer-Indian-Eskimo",
+                          "Black",
+                          "White")
+    )
+  ) |> 
+  dplyr::count(sex, relationship, race, wt = fnlwgt) |> 
+  dplyr::group_by(sex, race) |> 
+  dplyr::mutate(prop = round(n / sum(n), 2)) |> 
+  dplyr::select(-n) |> 
+  dplyr::ungroup() |> 
+  tidyr::pivot_wider(names_from = relationship, values_from = prop) |> 
+  dplyr::group_split(sex)
+
+colors <- tibble::tribble(
+  ~category       , ~color  ,
+  "Husband"       , "blue"  ,
+  "Not-in-family" , "gray"  ,
+  "Other-relative", "brown" ,
+  "Own-child"     , "green" ,
+  "Unmarried"     , "orange",
+  "Wife"          , "violet"
+)
+
+charts <- purrr::map(data_split, function(chart_data) {
+  series <- chart_data |> 
+    dplyr::ungroup() |> 
+    dplyr::select(-sex, -race) |> 
+    colnames()
+
+  plot <- chart_data |> 
+    dplyr::arrange(race) |> 
+    echarts4r::e_chart(x = race)
+  
+  for (serie_name in series) {
+    item_color <- colors |> 
+      dplyr::filter(category == serie_name) |> 
+      dplyr::pull(color)
+      
+    plot <- plot |> 
+      echarts4r::e_bar_(serie_name,
+                        itemStyle = list(color = item_color))
+  }
+  
+  plot |>
+    echarts4r::e_title(text = paste0("Relashionship by Race - ", unique(chart_data$sex))) |> 
+    echarts4r::e_flip_coords() |> 
+    echarts4r::e_grid(containLabel = TRUE, right = "15%") |> 
+    echarts4r::e_tooltip(trigger = "axis",
+                         valueFormatter = htmlwidgets::JS(
+                           "function(value) {
+                             return(Math.round(value * 100) + '%')
+                           }"
+                         )) |> 
+    echarts4r::e_legend(
+      left = "right",
+      top = "middle",
+      orient = "vertical"
+    ) |> 
+    echarts4r::e_x_axis(
+      formatter = echarts4r::e_axis_formatter(style = "percent"),
+      max = 1
+    )
+})
+
+echarts4r::e_arrange(charts[[1]], charts[[2]], rows = 1, cols = 2)
+```
+
+
+# Pie Charts
+```{r}
+income_data |> 
+  dplyr::count(income, wt = fnlwgt) |> 
+  echarts4r::e_chart(x = income) |> 
+  echarts4r::e_pie(serie = n,
+                   name = "Number of Citizens",
+                   itemStyle = list(
+                     borderColor = "black"
+                   ),
+                   label = list(
+                     position = "inside",
+                     formatter = "{b}\n\n{d}%",
+                     fontSize = 15
+                   ),
+                   emphasis = list(
+                     label = list(
+                       fontSize = 20,
+                       fontWeight = "bold"
+                     )
+                   )) |> 
+  echarts4r::e_title(text = "Citizens by Income") |> 
+  echarts4r::e_legend(show = FALSE) |> 
+  echarts4r::e_tooltip() |> 
+  echarts4r::e_color(c("orange", "lightgreen"))
+```
+
+- Change series name
+- Add borders to chart
+- Put labels inside pie chart
+- Add percetages to labels
+- Modify label font size
+- Add emphasis
+- Remove legend
+- Add tooltip
+- Custom colors to each category
+
+# Line Charts
+## _
+```{r}
+sales_data |> 
+  dplyr::mutate(MONTH_LABEL = month.name[MONTH_ID]) |> 
+  dplyr::group_by(YEAR_ID, MONTH_ID, MONTH_LABEL) |> 
+  dplyr::summarise(TOTAL_SALES = sum(SALES)) |> 
+  dplyr::ungroup() |> 
+  dplyr::group_by(YEAR_ID) |> 
+  echarts4r::e_chart(x = MONTH_LABEL) |> 
+  echarts4r::e_line(serie = TOTAL_SALES) |> 
+  echarts4r::e_tooltip(trigger = "axis",
+                       valueFormatter = htmlwidgets::JS(
+                         "function(value) {
+                           round = Math.round(value)
+                           with_big_mark = round.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',')
+                           return('$' + with_big_mark)
+                         }"
+                       )) |> 
+  echarts4r::e_title(text = "Total Sales by Month and Year") |> 
+  echarts4r::e_legend(top = "5%") |> 
+  echarts4r::e_grid(top = "10%") |> 
+  echarts4r::e_x_axis(axisLabel = list(rotate = 90)) |> 
+  echarts4r::e_y_axis(formatter = htmlwidgets::JS(
+    "function(value) {
+      if (value === 0) return('')
+      else if (value > 1000 && value < 1000000) {
+        thousands = value/1000
+        comma_separated = thousands.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',')
+        return('$' + comma_separated + 'K')
+      } else if (value >= 1000000) {
+        millions = value/1000000
+        millions = millions.toFixed(1)
+        comma_separated = millions.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',')
+        return('$' + comma_separated + 'M')
+      }
+    }"))
+```
+
+- Use of `month.name` constant
+- Currency labels
+- Separate legend from chart title
+- Rotate axis
+- Custom currency y-axis
+
+## _
+```{r, warning=FALSE}
+selected_products <- c("Motorcycles", "Classic Cars")
+
+sales_data |> 
+  dplyr::filter(PRODUCTLINE %in% selected_products) |> 
+  dplyr::mutate(YEAR_MONTH = lubridate::mdy_hm(ORDERDATE) |> 
+                  lubridate::floor_date(unit = "month")) |> 
+  dplyr::group_by(YEAR_MONTH, PRODUCTLINE) |> 
+  dplyr::summarise(TOTAL_SALES = sum(SALES)) |> 
+  dplyr::ungroup() |> 
+  dplyr::group_by(PRODUCTLINE) |> 
+  echarts4r::e_chart(x = YEAR_MONTH) |> 
+  echarts4r::e_line(serie = TOTAL_SALES) |> 
+  echarts4r::e_tooltip(trigger = "axis",
+                       valueFormatter = htmlwidgets::JS(
+                         "function(value) {
+                           round = Math.round(value)
+                           with_big_mark = round.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',')
+                           return('$' + with_big_mark)
+                         }"
+                       )) |> 
+  echarts4r::e_title(text = "Total Sales by Month", subtext = "For Selected Products") |> 
+  echarts4r::e_x_axis(
+    name = "Time",
+    nameTextStyle = list(
+      fontWeight = "bold",
+      fontSize = 15
+    ),
+    nameLocation = "middle",
+    nameGap = 30
+  ) |> 
+  echarts4r::e_y_axis(
+    formatter = echarts4r::e_axis_formatter(
+      style = "currency",
+      digits = 0
+    ),
+    name = "Sales",
+    nameTextStyle = list(
+      fontWeight = "bold",
+      fontSize = 15
+    ),
+    nameLocation = "middle",
+    nameGap = 75
+  ) |> 
+  echarts4r::e_grid(top = "20%", left = "15%") |> 
+  echarts4r::e_legend(top = "10%")
+```
+
+- Data by month
+- Add space between subtitle, legend and chart area
+- Add axis names with custom styling and proper spacing
+- Currency tooltip
+
+## _
+```{r, warning=FALSE}
+Sys.setlocale("LC_TIME", "English")
+
+selected_products <- c("Motorcycles", "Classic Cars")
+
+sales_data |> 
+  dplyr::filter(PRODUCTLINE %in% selected_products) |> 
+  dplyr::mutate(YEAR_MONTH = lubridate::mdy_hm(ORDERDATE) |> 
+                  lubridate::floor_date(unit = "month") |> 
+                  format("%Y-%B")) |> 
+  dplyr::group_by(YEAR_ID, MONTH_ID, YEAR_MONTH, PRODUCTLINE) |> 
+  dplyr::summarise(TOTAL_SALES = sum(SALES)) |> 
+  dplyr::ungroup() |> 
+  dplyr::group_by(PRODUCTLINE) |> 
+  echarts4r::e_chart(x = YEAR_MONTH) |> 
+  echarts4r::e_line(serie = TOTAL_SALES) |> 
+  echarts4r::e_tooltip(trigger = "axis",
+                       valueFormatter = htmlwidgets::JS(
+                         "function(value) {
+                           round = Math.round(value)
+                           with_big_mark = round.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',')
+                           return('$' + with_big_mark)
+                         }"
+                       )) |> 
+  echarts4r::e_title(text = "Total Sales by Month", subtext = "For Selected Products") |> 
+  echarts4r::e_x_axis(
+    axisLabel = list(
+      formatter =  htmlwidgets::JS(
+        "function(value, index) {
+          if (value.slice(-7) === 'January') return(value.slice(0, 4))
+          else return('')
+        }"),
+      fontWeight = "bold"
+      ),
+    axisTick = list(
+      alignWithLabel = TRUE
+    )
+  ) |> 
+  echarts4r::e_y_axis(
+    formatter = echarts4r::e_axis_formatter(
+      style = "currency",
+      digits = 0
+    )
+  ) |> 
+  echarts4r::e_grid(top = "20%") |> 
+  echarts4r::e_legend(top = "10%")
+```
+
+- Data by month
+- Set locale to English
+- Show only years in x axis labels
+- Align ticks with label
+- Show YEAR-MONTH_LABEL_LONG in tooltip
+
+## _
+```{r}
+chart_data <- sales_data |> 
+  dplyr::group_by(YEAR_ID, MONTH_ID, PRODUCTLINE) |> 
+  dplyr::summarise(TOTAL_SALES = sum(SALES)) |> 
+  dplyr::ungroup() |> 
+  tidyr::pivot_wider(names_from = PRODUCTLINE, values_from = TOTAL_SALES) |> 
+  dplyr::group_by(YEAR_ID)
+
+colors <- tibble::tribble(
+  ~category         , ~color     ,
+  "Classic Cars"    , "red"      ,
+  "Trains"          , "blue"     ,
+  "Trucks and Buses", "orange"   ,
+  "Vintage Cars"    , "purple"   ,
+  "Motorcycles"     , "green"    ,
+  "Planes"          , "lightblue",
+  "Ships"           , "brown"
+)
+
+series <- chart_data |> 
+  dplyr::ungroup() |> 
+  dplyr::select(-YEAR_ID, -MONTH_ID) |> 
+  colnames()
+
+plot <- chart_data |> 
+  echarts4r::e_chart(x = MONTH_ID, timeline = TRUE)
+
+for (serie_name in series) {
+  item_color <- colors |> 
+    dplyr::filter(category == serie_name) |> 
+    dplyr::pull(color)
+
+  plot <- plot |> 
+    echarts4r::e_line_(serie_name,
+                       itemStyle = list(color = item_color))
+}
+
+plot |> 
+  echarts4r::e_title(text = "Sales by Product Line, Month and Year") |> 
+  echarts4r::e_tooltip(trigger = "axis") |> 
+  echarts4r::e_y_axis(max = 500000) |>
+  echarts4r::e_x_axis(max = 12) |> 
+  echarts4r::e_legend(
+    left = "right",
+    top = "middle",
+    orient = "vertical"
+  ) |> 
+  echarts4r::e_grid(right = "20%")
+```
+
+- Visualize three categories
+- Use of `e_line_()` in `for` loop
+- Hard-coded axis max values
+- Change legend position and remove overlapping with chart area
+- Custom colors for each category
+
+## _
+```{r}
+data_split <- sales_data |> 
+  dplyr::group_by(YEAR_ID, MONTH_ID, PRODUCTLINE) |> 
+  dplyr::summarise(TOTAL_SALES = sum(SALES)) |> 
+  dplyr::ungroup() |> 
+  tidyr::pivot_wider(names_from = PRODUCTLINE, values_from = TOTAL_SALES) |> 
+  dplyr::group_split(YEAR_ID)
+
+charts <- purrr::map(data_split, function(chart_data) {
+  series <- chart_data |> 
+    dplyr::ungroup() |> 
+    dplyr::select(-YEAR_ID, -MONTH_ID) |> 
+    colnames()
+
+  plot <- chart_data |> 
+    echarts4r::e_chart(x = MONTH_ID)
+  
+  for (serie_name in series) {
+    plot <- plot |> 
+      echarts4r::e_line_(serie_name)
+  }
+  
+  plot |> 
+    echarts4r::e_title(text = paste0("Sales by Product Line and Month - Year ", unique(chart_data$YEAR_ID))) |>
+    echarts4r::e_tooltip(trigger = "axis") |>
+    echarts4r::e_y_axis(max = 500000) |>
+    echarts4r::e_x_axis(max = 12) |>
+    echarts4r::e_legend(
+      left = "right",
+      top = "middle",
+      orient = "vertical"
+    ) |>
+    echarts4r::e_grid(right = "20%")
+})
+
+echarts4r::e_arrange(charts[[1]], charts[[2]], charts[[3]], rows = 2, cols = 2)
+```
+
+- Visualize three categories in facet
+- Use of `e_line_()` in `for` loop
+- Hard-coded axis max values
+- Change legend position and remove overlapping with chart area
+- Even though in the document the arrangement is not shown, if the code is run in the console, the Viewer shows the rows and column arrangement
+- How to implement in Shiny App? `echarts4r::e_arrange()` doesn't seem to produce the chart
